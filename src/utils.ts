@@ -1,6 +1,6 @@
 
 import * as readline from 'readline';
-import { UserInput } from './dto/user-input.dto';
+import { UserInput } from './dto/user-input-fn.dto';
 
 export const getUserInput = async(): Promise<UserInput> => {
     const rl = readline.createInterface({

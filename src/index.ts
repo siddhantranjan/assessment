@@ -1,7 +1,7 @@
 import { chromium, Browser, Page } from 'playwright';
 import { getUserInput } from './utils';
 import { Product } from './dto/product.dto';
-import { UserInput } from './dto/user-input.dto';
+import { UserInput } from './dto/user-input-fn.dto';
 
 const launchBrowser = async(): Promise<{ browser: Browser; page: Page }> => {
   const browser = await chromium.launch({ headless: false });
