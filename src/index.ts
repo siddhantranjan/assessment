@@ -91,23 +91,23 @@ const navigateToHomePage = async (page: Page) => {
 
 async function scrapeAmazonIndia(): Promise<Product[]> {
   const { browser, page } = await launchBrowser();
+  const userInputFn: UserInput = await getUserInput();
 
   try {
     await navigateToHomePage(page);
 
-    const userInputFn: UserInput = await getUserInput();
     const { username, password } = await userInputFn.getCredentials();
     const loginSuccess = await loginToAmazon(page, username, password);
     if (!loginSuccess) return [];
 
     await navigateToOrderPage(page, userInputFn);
-    userInputFn.closeReadline();
     return await scrapeOrders(page);
   } catch (error) {
     console.error('Error during scraping:', error);
     return [];
   } finally {
     await browser.close();
+    userInputFn.closeReadline();
     console.log('Browser closed.');
   }
 }
