@@ -8,25 +8,26 @@ export const getUserInput = async(): Promise<UserInput> => {
         output: process.stdout,
     });
 
+    const askQuestion = (query: string): Promise<string> => {
+        return new Promise((resolve) => rl.question(query, (answer) => resolve(answer)));
+    };
+
     const getCredentials = async (): Promise<{ username: string; password: string }> => {
-        const username = await new Promise<string>((resolve) => {
-            rl.question('Enter your Amazon India username/email: ', (answer) => resolve(answer));
-        });
-    
-        const password = await new Promise<string>((resolve) => {
-            rl.question('Enter your Amazon India password: ', (answer) => resolve(answer));
-        });
+        const username = await askQuestion('Enter your Amazon India username/email: ');
+        const password = await askQuestion('Enter your Amazon India password: ');
         return { username, password };
-    }
+    };
 
     const getFilterInput = async (idMappedByYear: { [year: string]: string }): Promise<string> => {
-        const year = await new Promise<string>((resolve) => {
-            rl.question(`Select time filter : ${Object.keys(idMappedByYear).join(' | ')}: `, (answer) => resolve(answer));
-        });
-    
+        const year = await askQuestion(`Select time filter: ${Object.keys(idMappedByYear).join(' | ')}: `);
         return idMappedByYear[year];
-    }
+    };
+
+    const askForFilter = async (): Promise<boolean> => {
+        const response = await askQuestion('Do you want to apply a filter? (yes/no): ');
+        return response === 'yes' || response === 'y';
+    };
 
     const closeReadline = () => rl.close();
-    return { getCredentials, getFilterInput, closeReadline };
+    return { getCredentials, getFilterInput, closeReadline, askForFilter };
 }

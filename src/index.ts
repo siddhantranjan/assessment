@@ -3,13 +3,13 @@ import { getUserInput } from './utils';
 import { Product } from './dto/product.dto';
 import { UserInput } from './dto/user-input-fn.dto';
 
-const launchBrowser = async(): Promise<{ browser: Browser; page: Page }> => {
+const launchBrowser = async (): Promise<{ browser: Browser; page: Page }> => {
   const browser = await chromium.launch({ headless: false });
   const page = await browser.newPage();
   return { browser, page };
 }
 
-const loginToAmazon = async(page: Page, username: string, password: string): Promise<boolean> => {
+const loginToAmazon = async (page: Page, username: string, password: string): Promise<boolean> => {
   try {
     await page.locator('input[name="email"]').waitFor({ state: 'visible' });
     console.log('Login page loaded.');
@@ -32,29 +32,33 @@ const loginToAmazon = async(page: Page, username: string, password: string): Pro
   }
 }
 
-const navigateToOrderPage = async(page: Page, userInputFn: UserInput) => {
+const navigateToOrderPage = async (page: Page, userInputFn: UserInput) => {
   await page.goto('https://www.amazon.in/your-orders/orders');
   await page.locator('.a-dropdown-prompt').click();
-  
-  const allFilterCriteria = await page.locator('.a-popover-inner .a-nostyle.a-list-link .a-dropdown-link').all();
 
-  const idMappedByYear = {};
-  for (let year of allFilterCriteria) {
-    const yearText = await year.innerText();
-    const yearId = await year.getAttribute('id');
+  const filterRequired = await userInputFn.askForFilter();
 
-    Object.assign(idMappedByYear, {[yearText]: yearId});
+  if (filterRequired) {
+    const allFilteringCriteria = await page.locator('.a-popover-inner .a-nostyle.a-list-link .a-dropdown-link').all();
+
+    const idMappedByYear = {};
+    for (let year of allFilteringCriteria) {
+      const yearText = await year.innerText();
+      const yearId = await year.getAttribute('id');
+
+      Object.assign(idMappedByYear, { [yearText]: yearId });
+    }
+
+    const id = await userInputFn.getFilterInput(idMappedByYear);
+    console.log('Navigated to order history page.');
+    await page.click(`[id=${id}]`);
   }
-
-  const id = await userInputFn.getFilterInput(idMappedByYear);
-  console.log('Navigated to order history page.');
-  await page.click(`[id=${id}]`);
 
   await page.waitForTimeout(2000);
   console.log('Order history page loaded.');
 }
 
-const scrapeOrders = async(page: Page): Promise<Product[]> => {
+const scrapeOrders = async (page: Page): Promise<Product[]> => {
 
   const products: Product[] = [];
   for (const row of await page.locator('.order-card__list').all()) {
