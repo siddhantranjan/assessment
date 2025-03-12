@@ -54,7 +54,11 @@ const navigateToOrderPage = async (page: Page, userInputFn: UserInput) => {
     await page.click(`[id=${id}]`);
   }
 
-  await page.waitForTimeout(2000);
+  try{
+    await page.locator('.order-card__list').first().waitFor({ state: 'visible', timeout: 5000 });
+  } catch (error) {
+    console.log('No orders found.');
+  }
   console.log('Order history page loaded.');
 }
 
