@@ -1,6 +1,7 @@
 import { chromium, Browser, Page } from 'playwright';
-import { getCredentials, getFilterInput } from './utils';
+import { getUserInput } from './utils';
 import { Product } from './dto/product.dto';
+import { UserInput } from './dto/user-input.dto';
 
 const launchBrowser = async(): Promise<{ browser: Browser; page: Page }> => {
   const browser = await chromium.launch({ headless: false });
@@ -31,7 +32,7 @@ const loginToAmazon = async(page: Page, username: string, password: string): Pro
   }
 }
 
-const navigateToOrderPage = async(page: Page) => {
+const navigateToOrderPage = async(page: Page, userInputFn: UserInput) => {
   await page.goto('https://www.amazon.in/your-orders/orders');
   await page.locator('.a-dropdown-prompt').click();
   
@@ -45,7 +46,7 @@ const navigateToOrderPage = async(page: Page) => {
     Object.assign(idMappedByYear, {[yearText]: yearId});
   }
 
-  const id = await getFilterInput(idMappedByYear);
+  const id = await userInputFn.getFilterInput(idMappedByYear);
   console.log('Navigated to order history page.');
   await page.click(`[id=${id}]`);
 
@@ -86,11 +87,13 @@ async function scrapeAmazonIndia(): Promise<Product[]> {
   try {
     await navigateToHomePage(page);
 
-    const { username, password } = await getCredentials();
+    const userInputFn: UserInput = await getUserInput();
+    const { username, password } = await userInputFn.getCredentials();
     const loginSuccess = await loginToAmazon(page, username, password);
     if (!loginSuccess) return [];
 
-    await navigateToOrderPage(page);
+    await navigateToOrderPage(page, userInputFn);
+    userInputFn.closeReadline();
     return await scrapeOrders(page);
   } catch (error) {
     console.error('Error during scraping:', error);
