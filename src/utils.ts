@@ -34,7 +34,7 @@ export const getUserInput = async(): Promise<UserInput> => {
 
     const askForFilter = async (): Promise<boolean> => {
         const response = await askQuestion('Do you want to apply a filter? (yes/no): ');
-        return response === 'yes' || response === 'y';
+        return ["yes", "y"].includes(response.toLowerCase());
     };
 
     const closeReadline = () => rl.close();
