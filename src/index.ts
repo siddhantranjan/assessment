@@ -1,90 +1,76 @@
 import { chromium, Browser, Page } from 'playwright';
-import * as readline from 'readline';
+import { getCredentials } from './utils';
+import { Product } from './dto/product.dto';
 
-// Interface for the scraped product data
-interface Product {
-  name: string;
-  price: string;
-  link: string;
+async function launchBrowser(): Promise<{ browser: Browser; page: Page }> {
+  const browser = await chromium.launch({ headless: false });
+  const page = await browser.newPage();
+  return { browser, page };
 }
 
-// Function to prompt user for credentials
-async function getCredentials(): Promise<{ username: string; password: string }> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  const username = await new Promise<string>((resolve) => {
-    rl.question('Enter your Amazon India username/email: ', (answer) => resolve(answer));
-  });
-
-  const password = await new Promise<string>((resolve) => {
-    rl.question('Enter your Amazon India password: ', (answer) => resolve(answer));
-  });
-
-  rl.close();
-  return { username, password };
-}
-
-// Main scraping function
-async function scrapeAmazonIndia(): Promise<Product[]> {
-  const browser: Browser = await chromium.launch({ headless: false });
-  const page: Page = await browser.newPage();
-
+async function loginToAmazon(page: Page, username: string, password: string): Promise<boolean> {
   try {
-    // Navigate to Amazon India login page
-    await page.goto('https://www.amazon.in');
-    console.log('Navigated to Amazon India homepage.');
-
-    // Click on the sign-in button
-    const signInButton = page.locator('#nav-link-accountList');
-    await signInButton.click();
-    console.log('Clicked on the sign-in button.');
-
-    // Wait for the login page to load
-    const emailInput = page.locator('#ap_email');
-    await emailInput.waitFor({ state: 'visible' });
+    await page.locator('input[name="email"]').waitFor({ state: 'visible' });
     console.log('Login page loaded.');
 
-    // Get user credentials
-    const { username, password } = await getCredentials();
-
-    // Enter credentials
-    await page.fill('#ap_email', username);
-    await page.click('#continue');
+    await page.locator('input[name="email"]').fill(username);
+    await page.locator('#continue').first().click();
     console.log('Entered username and clicked continue.');
 
-    // Wait for the password field to appear
-    await page.waitForSelector('#ap_password', { state: 'visible' });
-    await page.fill('#ap_password', password);
-    await page.click('#signInSubmit');
+    await page.locator('input[name="password"]').waitFor({ state: 'visible' });
+    await page.locator('input[name="password"]').fill(password);
+    await page.locator('#signInSubmit').click();
     console.log('Entered password and clicked sign-in.');
 
-    // Handle MFA (if applicable)
-    console.log('If MFA is required, complete it manually in the browser...');
     await page.waitForURL('https://www.amazon.in/?ref_=nav_ya_signin', { timeout: 30000 });
-    console.log('Login successful. Navigated to homepage.');
+    console.log('Login successful.');
+    return true;
+  } catch (error) {
+    console.error('Login failed:', error);
+    return false;
+  }
+}
 
-    // Navigate to order history
-    await page.goto('https://www.amazon.in/your-orders/orders?orderFilter=all&timeFilter=year-2024&ref_=ppx_yo2ov_mob_b_filter_y2024_all');
-    console.log('Navigated to order history page.');
+async function scrapeOrders(page: Page): Promise<Product[]> {
+  await page.goto('https://www.amazon.in/your-orders/orders?orderFilter=all&timeFilter=year-2024&ref_=ppx_yo2ov_mob_b_filter_y2024_all');
+  console.log('Navigated to order history page.');
 
-    const products: Product[] = [];
-    for (const row of await page.locator('.order-card__list').all()) {
+  const products: Product[] = [];
+  for (const row of await page.locator('.order-card__list').all()) {
+    const title = await row.locator('.yohtmlc-product-title').innerText();
+    const price = await row.locator('.a-column.a-span2 .a-size-base.a-color-secondary.aok-break-word').innerText();
+    const link = await row.locator('.product-image .a-link-normal').getAttribute('href');
 
-        const title = await row.locator(".yohtmlc-product-title").innerText();
-        const price = await row.locator(".a-column.a-span2").locator(".a-size-base.a-color-secondary.aok-break-word").innerText();
-        const link = await row.locator(".product-image").locator(".a-link-normal").getAttribute("href");
+    products.push({
+      name: title,
+      price: price,
+      link: `https://www.amazon.in${link}`,
+    });
+  }
 
-        products.push({
-            name: title,
-            price: price,
-            link: "https://www.amazon.in" + link
-        })
-    }
-    console.log(`Scraped ${products.length} purchased items.`);
-    return products;
+  console.log(`Scraped ${products.length} purchased items.`);
+  return products;
+}
+
+const navigateToHomePage = async (page: Page) => {
+  await page.goto('https://www.amazon.in');
+  console.log('Navigated to Amazon India homepage.');
+
+  await page.locator('#nav-link-accountList').click();
+  console.log('Clicked on the sign-in button.');
+}
+
+async function scrapeAmazonIndia(): Promise<Product[]> {
+  const { browser, page } = await launchBrowser();
+
+  try {
+    await navigateToHomePage(page);
+
+    const { username, password } = await getCredentials();
+    const loginSuccess = await loginToAmazon(page, username, password);
+    if (!loginSuccess) return [];
+
+    return await scrapeOrders(page);
   } catch (error) {
     console.error('Error during scraping:', error);
     return [];
@@ -94,11 +80,4 @@ async function scrapeAmazonIndia(): Promise<Product[]> {
   }
 }
 
-// Run the scraper and output results
-scrapeAmazonIndia()
-  .then((products) => {
-    console.log(JSON.stringify(products, null, 2));
-  })
-  .catch((error) => {
-    console.error('Error during scraping:', error);
-  });
+scrapeAmazonIndia().then(console.log);
