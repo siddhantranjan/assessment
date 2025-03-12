@@ -21,24 +21,23 @@ A Node.js-based web scraper for Amazon India that allows users to log in, view t
 
 ### Setup
 1. Clone the repository:
-   bash
-   git clone https://github.com/siddhantranjan/assessment.git
-   cd assessment
-   code .
+   
+   ```git clone https://github.com/siddhantranjan/assessment.git```
 
-2. Install dependencies:
-   bash
-   npx install Playwright
-   npm i
+   ```cd assessment```
 
-Install all the dependencies   
+   ```code .```
+
+3. Install dependencies:
+   
+   ```npx install Playwright```
+
+   ```npm i```
    
 3. Compile the typerscript code:
-     bash
-    npx tsc --watch
-    
-This will watch for changes in your TypeScript files and recompile them automatically.
+
+   ```npx tsc --watch```
 
 4. Run the program
-    bash 
-   npm run dev
+  
+   ``` npm run dev```
